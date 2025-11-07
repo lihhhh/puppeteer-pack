@@ -2,7 +2,6 @@ const q = require('q')
 const debugError = require('debug')(`puppeteer:error`);
 const request = require('request')
 const UserAgent = require('user-agents');
-const Agent = require('socks5-https-client/lib/Agent');
 const async = require('async');
 
 function computeQuadArea(quad) {
@@ -21,6 +20,7 @@ function computeQuadArea(quad) {
 module.exports = class Page {
     constructor(page) {
         this.page = page;
+        this.on = page.on;
         this._request = {
             defaults: {
                 pool: {}
@@ -205,7 +205,7 @@ module.exports = class Page {
     /**
      * 获取 一个新的UserAgent
      */
-    getUserAgent(option) {
+    async getUserAgent(option) {
         let _ua = new UserAgent(option || { deviceCategory: 'mobile' })
 
         return _ua.toString();
@@ -246,24 +246,22 @@ module.exports = class Page {
 
         (async () => {
             let cookies = await this.page.cookies();
-            let csrftoken = cookies.find(it => it.name == 'csrftoken')
+            
             let ck = cookies.map(it => it.name + '=' + it.value)
-            let rollout_hash = await this.page.evaluate(() => {
-                return _sharedData.rollout_hash;
-            })
+            
             let defaults = {
                 rejectUnauthorized: false,//忽略证书验证
-                agentClass: Agent,
+                // agentClass: Agent,
                 strictSSL: true,
                 // agentOptions: {
                 //     socksHost: this.data.proxy.replace(/.*?(\d+\.\d+\.\d+\.\d+).*/g, '$1'),
                 //     socksPort: 8808
                 // },
                 headers: {
-                    "X-Instagram-AJAX": rollout_hash,
-                    "X-CSRFToken": csrftoken.value,
+                    "accept-language": "en",
+                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
                     "Cookie": ck.join(';'),
-                    "referer": "https://www.instagram.com/"
+                    "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 M"
                 },
                 ...this._request.defaults
             };
@@ -278,8 +276,6 @@ module.exports = class Page {
             req(options, (err, res, body) => {
                 this.reqNum -= 1;
                 try {
-                    console.log('info', `statusCode:${res.statusCode},body:${body}`)
-                    res.status = res.statusCode;
                     defer.resolve(res)
                 } catch (err) {
                     defer.reject(err)

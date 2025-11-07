@@ -1,5 +1,7 @@
 const Page = require('./puppeteer/Page')
-const puppeteer = require('puppeteer')
+const puppeteer = require('puppeteer');
+const path = require('path');
+const inject = require('fs').readFileSync(path.join(__dirname,'./libs/inject.js'),'utf-8');
 
 module.exports = class Puppeteer {
     constructor() {
@@ -14,6 +16,15 @@ module.exports = class Puppeteer {
             await _page.setExtraHTTPHeaders({
                 'Accept-Language': `en`
             });
+
+            await _page.evaluateOnNewDocument(function (inject) {
+                eval(inject);
+                window.navigator.chrome = {
+                    runtime: {}
+                };
+    
+                delete navigator.__proto__.webdriver;
+            },inject)
 
             return new Page(_page);
         }
